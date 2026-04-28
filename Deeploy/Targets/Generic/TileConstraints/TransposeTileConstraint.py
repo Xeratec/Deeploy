@@ -4,6 +4,8 @@
 
 from typing import Dict, List, Tuple
 
+import numpy as np
+
 from Deeploy.AbstractDataTypes import PointerClass
 from Deeploy.CommonExtensions.DataTypes import uint16_t
 from Deeploy.CommonExtensions.OptimizationPasses.TopologyOptimizationPasses.LoweringOptimizationPasses import \
@@ -11,7 +13,7 @@ from Deeploy.CommonExtensions.OptimizationPasses.TopologyOptimizationPasses.Lowe
 from Deeploy.DeeployTypes import NetworkContext, OperatorRepresentation
 from Deeploy.TilingExtension.MemoryConstraints import NodeMemoryConstraint
 from Deeploy.TilingExtension.TileConstraint import TileConstraint
-from Deeploy.TilingExtension.TilerModel import TilerModel
+from Deeploy.TilingExtension.TilerModel import PerformanceHint, TilerModel
 from Deeploy.TilingExtension.TilingCodegen import AbsoluteHyperRectangle, TilingSchedule, VariableReplacementScheme
 
 
@@ -32,6 +34,24 @@ class TransposeTileConstraint(TileConstraint):
             tilerModel.addConstraint(
                 tilerModel.getTensorDimVar(tensorName = outputBufferName, dimIdx = idx) == tilerModel.getTensorDimVar(
                     tensorName = inputBufferName, dimIdx = perm_idx))
+
+        return tilerModel
+
+    @staticmethod
+    def addPolicyConstraint(tilerModel: TilerModel, parseDict: Dict, ctxt: NetworkContext) -> TilerModel:
+        # Soft hint: split the output across at least 4 tiles. Transpose is
+        # bandwidth-bound, so a higher tile count keeps DMA and compute pipelined
+        # under double buffering.
+        outputBufferName = parseDict['data_out']
+        outputBuffer = ctxt.lookup(outputBufferName)
+
+        totalElements = int(np.prod(outputBuffer.shape))
+        if totalElements < 4:
+            return tilerModel
+
+        tilerModel.addTensorNumOfEltToModel(ctxt, outputBufferName)
+        numEltVar = tilerModel.getTensorNumberOfEltVar(outputBufferName)
+        tilerModel.addConstraint(numEltVar * 4 <= totalElements, strategy = PerformanceHint(priority = 0))
 
         return tilerModel
 
