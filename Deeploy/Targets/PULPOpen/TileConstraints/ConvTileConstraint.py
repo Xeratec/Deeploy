@@ -93,15 +93,16 @@ class RQConv2DTileConstraint(TileConstraint):
         strides = parseDict["strides"]
         padding = parseDict["pads"]
 
-        # VIC: Force at least one row of A and one col of B in the GEMM (since it's a im2col Conv) to avoid partial results
         tilerModel.addConstraint(inputChannelVar == parseDict['ch_im_in'])
-
-        if (parseDict["ch_im_out"] >= 8):
-            tilerModel.addMinTileSizeConstraint(parseDict, 'ch_im_out', outputChannelVar, 8)
-
-        tilerModel.addConstraint(inputHeightVar >= parseDict['dim_kernel_x'])
-        tilerModel.addConstraint(inputWidthVar >= parseDict['dim_kernel_y'])
         tilerModel.addConstraint(weightInChannelVar == parseDict['ch_im_in'])
+
+        # tilerModel.addConstraint(outputChannelVar == parseDict['ch_im_out'])
+        if (parseDict["ch_im_out"] >= 32):
+            tilerModel.addMinTileSizeConstraint(parseDict, 'ch_im_out', outputChannelVar, 32)
+        elif (parseDict["ch_im_out"] >= 16):
+            tilerModel.addMinTileSizeConstraint(parseDict, 'ch_im_out', outputChannelVar, 16)
+        elif (parseDict["ch_im_out"] >= 8):
+            tilerModel.addMinTileSizeConstraint(parseDict, 'ch_im_out', outputChannelVar, 8)
 
         # VIC: Constraint the minimum tile size such that we can apply at least one kernel on it
         tilerModel.addConstraint(inputHeightVar >= parseDict['dim_kernel_x'])
