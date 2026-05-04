@@ -5,7 +5,11 @@
 
 import sys
 
-from testUtils.deeployRunner import main
+from testUtils.gap9Bootstrap import bootstrap_gap9_env
+
+bootstrap_gap9_env()
+
+from testUtils.deeployRunner import main  # noqa: E402
 
 if __name__ == "__main__":
 
