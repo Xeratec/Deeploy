@@ -64,15 +64,14 @@ class PULP2DDWConvTemplate(PULP2DConvTemplate):
     def computeTransientBuffersSize(
             self, ctxt: NetworkContext,
             operatorRepresentation: OperatorRepresentation) -> List[Tuple[str, Union[int, IntVar]]]:
-        # The depthwise pulp-nn kernel reuses one column-shaped im2col scratch
-        # per core. Per core it needs `dim_kernel_x * (dim_in_y + pad_top +
-        # pad_bot) + dim_kernel_x` bytes (the trailing `+ dim_kernel_x` is the
-        # safety zone for the last v4u write).
+        # One column-shaped im2col scratch per core, sized with the kernel's parameters. The call
+        # below passes the spatial axes transposed, so dim_in_y is dim_im_in_x and dim_kernel_x is
+        # dim_kernel_y.
         pad_top = operatorRepresentation['padding_y_top']
         pad_bot = operatorRepresentation['padding_y_bottom']
-        per_core = (operatorRepresentation['dim_kernel_x'] *
-                    (operatorRepresentation['dim_im_in_y'] + pad_top + pad_bot) +
-                    operatorRepresentation['dim_kernel_x'])
+        per_core = (operatorRepresentation['dim_kernel_y'] *
+                    (operatorRepresentation['dim_im_in_x'] + pad_top + pad_bot) +
+                    operatorRepresentation['dim_kernel_y'])
         im2col_dim = 8 * per_core
         im2col_name = operatorRepresentation['nodeName'] + "_buffer"
         return [(im2col_name, im2col_dim)]
